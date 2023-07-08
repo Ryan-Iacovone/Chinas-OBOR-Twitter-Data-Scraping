@@ -900,7 +900,7 @@ ggplot() +
   
   theme_clean()
 
-#ggsave(one, file = "Cool Figs/SelectCSM.png")
+#ggsave(one, file = "Cool Figs/SelectCSM.png", width = 12, height =7)
 ```
 
 
