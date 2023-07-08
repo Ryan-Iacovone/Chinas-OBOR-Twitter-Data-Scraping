@@ -1,0 +1,236 @@
+```{r}
+#Reading in all the libraries and wrangled data frames from this initial R file 
+source("C:/Users/Ryan/Coding Projects/Twitter Data Scraping/sent_wrangling.R")
+```
+
+
+## Bing lexicon
+
+
+### Prerpocessing and ebasic exploration of the Bing lexicon with our own data (in the same ways we did to the afinn dataset)
+```{r}
+#prepping to load in the third lexicon bing where I'll be looking at if a word is either positive or negative
+bing <- get_sentiments("bing")
+```
+
+
+```{r}
+#exploring bing dataset
+bing %>% filter(sentiment == "positive")
+
+#Code to check what words are in the bing database
+bing %>% filter(word == 'opportunity')
+```
+
+
+```{r}
+#We can combine the words and sentiments using inner_join(), which will only keep words associated with a sentiment.
+# bing_scores_b means this data frame is biased because chinese state media sources are included 
+bing_scores_b <- tweet_words_china %>% inner_join(bing, by = "word")
+
+#tidying up 
+rm(bing)
+```
+
+
+```{r}
+#filtering out misleading words from our bing dataset
+bing_scores_b <- bing_scores_b %>% filter(!word %in% c("trump", "premier", "gold", "vice", "dawn", "soft", "ambitious", "rail"))
+
+#zzzz <- bing_scores %>% filter(word  == "ready")
+```
+
+
+```{r}
+#Getting rid of biased Chinese state media sources from overall bing_scores data frame
+
+#official Chinese news sites were gathered by looking up common chinese state media and see if they showed up in our dataset. This was then confirmed by checking each account in question and seeing if it had the "chinese state media" banner on their twitter profiles
+
+china_offical_news <- c("CCTV",  "ChinaDaily", "beltroadnews", "XHNews", "China__Focus", "ChinaEUMission", "CGTNOfficial", "globaltimesnews", "PDChina", "ChinaDailyWorld", "chinafrica1")
+
+bing_scores <- bing_scores_b %>% filter(!username %in% china_offical_news)
+```
+
+
+### Investigating/analysis (no graphs) on Bing lexicon with our own data 
+
+#### Investigating the top tweeters that had a word match our lexicon and therefore would be more impactful in calculating actual sentiment 
+```{r}
+#note that we're counting words (that are in the lexicon) per username, not tweets 
+
+bing_scores %>% count(username, sort = TRUE) %>% top_n(10)
+```
+
+
+#### List of most common words and their associated sentiment value, filtering out CPEC_Official because their tweets were useless 
+```{r}
+#This new code version is sooo much cleaner
+bing_scores %>%
+  filter(username != "CPEC_Official") %>% 
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+
+bing_word_counts <- bing_scores %>%
+  filter(username != "CPEC_Official") %>% 
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+```
+
+
+#### List of most common postive and negative sentiment words
+```{r}
+# Positive sentiment words
+
+bing_scores %>%
+    filter(username != "CPEC_Official" & sentiment == "positive") %>%
+    group_by(word) %>%
+    summarize(count = n()) %>%
+    arrange(desc(count)) %>%
+    left_join(bing_scores %>% distinct(word, sentiment), by = "word")
+
+
+# negative sentiment words 
+
+bing_scores %>%
+    filter(username != "CPEC_Official" & sentiment == "negative") %>%
+    group_by(word) %>%
+    summarize(count = n()) %>%
+    arrange(desc(count)) %>%
+    left_join(bing_scores %>% distinct(word, sentiment), by = "word")
+```
+
+
+#### Concise bar chart that nicely plots top negative and positive words from bing lexicon
+```{r}
+bing_bar <- bing_word_counts %>% group_by(sentiment) %>% slice_max(n, n = 20) %>% ungroup() %>% mutate(word = reorder(word, n))
+
+#just trying to clean up the global environment
+rm(bing_word_counts)
+
+bing_bar %>% ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(title = "Bing",
+       x = "Contribution to sentiment",
+       y = NULL) +
+  theme_clean()
+```
+
+
+## Bing visualizations
+
+
+### Preprocessing bing_scores for visualization of sentiment over all years in dataset
+```{r}
+#standardizing the bing lexicon to compare (positive = 1, negative = -1) then averaging them out to plot them over time 
+
+bing_scores$stan <- ifelse(bing_scores$sentiment == "positive", 1, -1)
+```
+
+
+#### Also modifying the affin dataset to be on the same standardized scalle as the bing dataset for comparison
+```{r}
+#Creating a dataframe called tweet_sentiments that contains the month, average sentiment of tweets for that month, and number of tweets
+
+#n_tweets = n() is used to create a new column in the summarized data frame that contains the number of tweets per month.
+#When using dplyr functions like summarize(), you can use the n() function to count the number of rows in a group. In this case, we're grouping the data by month (in the format month-year) using group_by(month), and then counting the number of rows in each group (i.e., the number of tweets in each month) using n()
+
+tweet_sentiments_b <- bing_scores %>% 
+  group_by(month, year) %>% 
+  summarise(sentiment = mean(stan), n_tweets = n()) %>%
+  #Changing the format of the month variable back into a date format so that we can use the geom_smooth function with it
+  mutate(month = as.Date(paste0("01-", month), format = "%d-%m-%y"))
+```
+
+
+### Looking at average sentiment from 2014-2023 on a single graph (minus Chinese state media sources)
+```{r}
+tweet_sentiments_b %>% ggplot(aes(month, sentiment)) +
+  
+  #geom_smooth(color = "red", linetype = "solid", se = FALSE) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(aes(size = n_tweets), alpha = 0.6, color = "blue") +
+  
+  # Add vertical lines for each year
+  geom_vline(aes(xintercept = as.numeric(as.Date(paste0(year, "-01-01")))), 
+             color = "gray", linetype = "dotted") +            
+  labs(
+    title = "Average Sentiment of Tweets Using Bing Lexicon", 
+    x = "Year", 
+    y = "Sentiment Score (-1 to 1)",
+    size = "Tweet Size"
+    )+
+  
+  #scale_y_continuous(
+    #breaks = seq(-1, 1, by = .2),
+    #limits = c(-1, 1)) +
+  
+  #Organizes the x axis by each month then formats how we want it labeled 
+   scale_x_date(
+    date_breaks = "1 year",
+    date_labels = "%b '%y") +
+    #date_minor_breaks = "1 month", minor_breaks = "1 month") +
+  
+  theme_clean() +
+  
+  theme(panel.grid.minor.y = element_line(color = "gray", linetype = "dotted"),
+    legend.position = c(.7, .2),
+    legend.direction = "horizontal",
+    legend.title = element_text(size = 10.5), 
+    legend.text = element_text(size = 10)) 
+```
+
+
+### Code to create a graph for each year of sentiment analysis (specific year analysis)
+```{r}
+sentiment_year_b <- list()
+
+for (yr in unique(tweet_sentiments_b$year)) {
+  df_year <- subset(tweet_sentiments_b, year == yr) 
+  
+  plot <- ggplot(df_year, aes(month, sentiment)) +
+  
+  #geom_smooth(color = "red", linetype = "solid", se = FALSE) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(aes(size = n_tweets), alpha = 0.6, color = "blue") +
+    
+  # Add vertical lines for each month
+  geom_vline(aes(xintercept = month), color = "gray", linetype = "dotted") +
+
+  labs(
+    title = paste0("Average Sentiment of Tweets (Bing) in ", yr), 
+    x = paste0("Month (", yr, ")"), 
+    y = "Sentiment Score (-6 to 6)",
+    size = "Tweet Size"
+    )+
+  
+  #scale_y_continuous(
+    #breaks = seq(-1, 1, by = .2),
+    #limits = c(-1, 1)) +
+  
+  #Organizes the x axis by each month then formats how we want it labeled 
+   scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b") +
+    #date_minor_breaks = "1 month", minor_breaks = "1 month") +
+  
+  theme_clean() +
+  
+  theme(panel.grid.minor.y = element_line(color = "gray", linetype = "dotted"),
+    #legend.position = c(.7, .3),
+    #legend.direction = "horizontal",
+    legend.title = element_text(size = 10.5), 
+    legend.text = element_text(size = 10)) 
+  
+  sentiment_year_b[[yr]] <- plot
+  
+  rm(plot, df_year)
+    
+}
+
+sentiment_year_b[["2018"]]
+
+
+#plot_grid(plotlist = sentiment_year, ncol = 3)
+```

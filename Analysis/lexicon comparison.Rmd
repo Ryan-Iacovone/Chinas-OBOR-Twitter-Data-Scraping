@@ -1,8 +1,6 @@
 ```{r}
 #Reading in all the libraries and wrangled data frames from this initial R file 
 source("C:/Users/Ryan/Coding Projects/Twitter Data Scraping/sent_wrangling.R")
-
-library(cowplot)
 ```
 
 ###### Perform sentiment analysis ###### 

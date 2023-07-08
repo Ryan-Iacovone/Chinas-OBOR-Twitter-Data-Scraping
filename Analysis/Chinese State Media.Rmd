@@ -1,0 +1,232 @@
+```{r}
+#Reading in all the libraries and wrangled data frames from this initial R file 
+source("C:/Users/Ryan/Coding Projects/Twitter Data Scraping/sent_wrangling.R")
+
+load("tweet_sentiments_a.rda")
+load("TopX_list.rda")
+```
+
+
+# Visualizations section of sentiment analysis - Code organized by data manipulation then specific graph, rinse and repeat 
+        
+
+## Afinn visualizations
+
+
+###  Prepping afinn_scores for visualization of sentiment over all years in dataset
+
+```{r}
+#The AFINN lexicon assigns a score between -5 and 5, with -5 the most negative and 5 the most positive.
+afinn <- get_sentiments("afinn")
+
+#We can combine the sentiments and words from out china databse using inner_join(), which will only keep words associated with a sentiment.
+#"afinn_scores_b" means that the dataset is biased because it still contains chinese affiliated news outlets 
+
+afinn_scores_b <- tweet_words_china %>% inner_join(afinn, by = "word")
+```
+
+
+### Analysis of only "china state-affiliated media" or "China government organization" (designation based on twitter)
+```{r}
+#taking all Chinese state media twitter accounts and putting them in a list 
+#official Chinese news sites were gathered by looking up common chinese state media and see if they showed up in our dataset. This was then confirmed by checking each account in question and seeing if it had the "chinese state media" banner on their twitter profiles
+
+china_offical_news <- c("CCTV",  "ChinaDaily", "beltroadnews", "XHNews", "China__Focus", "ChinaEUMission", "CGTNOfficial", "globaltimesnews", "PDChina", "ChinaDailyWorld", "chinafrica1")
+```
+
+
+```{r}
+#Looking at the sentiment of only Chinese state media twitter accounts to see how they are influencing the conversation
+
+#Note that the the top tweeters does not necessarily translate to the top tweeters who displayed some sentiment about belt and Road 
+
+sentiments_CSM <- afinn_scores_b %>% 
+  filter(username %in% china_offical_news) %>% 
+  group_by(month) %>% 
+  summarise(sentiment = mean(value), n_tweets = n()) %>%
+  mutate(month = as.Date(paste0("01-", month), format = "%d-%m-%y"))
+
+
+#verifiying that only the top 10 usernames saved 
+#sentiments_top10 %>% count(username, sort = TRUE)
+```
+
+
+#### Graphing all Chinese news outlets together 
+```{r}
+sentiments_CSM %>% ggplot(aes(month, sentiment)) +
+  
+  geom_line(color = "blue", size = 1) +
+  geom_point(aes(size = n_tweets), alpha = 0.6, color = "blue") +
+  
+  labs(
+    title = "Average Sentiment Score by Offical Chinese State Media", 
+    x = "Year", 
+    y = "Sentiment Score (-6 to 6)",
+    size = "Tweet Size"
+    )+
+  
+  scale_y_continuous(
+    breaks = seq(-2, 2, by = 1),
+    limits = c(-2, 2)) +
+  
+  #Organizes the x axis by each month then formats how we want it labeled 
+   scale_x_date(
+    date_breaks = "1 year",
+    date_labels = "%b '%y") +
+
+  theme_clean() +
+  
+  theme(
+    panel.grid.minor.y = element_line(color = "gray", linetype = "dotted"),
+    legend.position = c(.5, .3),
+    legend.direction = "horizontal",
+    legend.title = element_text(size = 10.5), 
+    legend.text = element_text(size = 10) 
+    ) 
+```
+
+#### Graphing the top 4 Chinese news outlets individually on the same graph to see which outlets are the most positive in terms of BRI
+```{r}
+outlets <- list()
+
+for (outlet in china_offical_news) {
+  CSM_outlet <- afinn_scores_b %>% 
+  filter(username == outlet) %>% 
+  group_by(month) %>% 
+  summarise(sentiment = mean(value), n_tweets = n()) %>%
+  mutate(month = as.Date(paste0("01-", month), format = "%d-%m-%y"))
+
+outlets[[outlet]] <- CSM_outlet
+}
+
+china_offical_news
+
+outlets[["CCTV"]]
+```
+
+
+```{r}
+#graph is scrunched on y axis to focus on smoothing line
+
+ggplot() +
+  
+  geom_point(data = outlets[["beltroadnews"]], aes(month, sentiment, color = "beltroadnews"), size = 3) +
+  geom_smooth(data = outlets[["beltroadnews"]], aes(month, sentiment), se = FALSE, color = "red")+
+
+  geom_point(data = outlets[["XHNews"]], aes(month, sentiment, color = "XHNews"), size = 3) +
+  geom_smooth(data = outlets[["XHNews"]], aes(month, sentiment), se = FALSE, color = "blue") +
+  
+  geom_point(data = outlets[["globaltimesnews"]], aes(month, sentiment, color = "globaltimesnews"), size = 3) +
+  geom_smooth(data = outlets[["globaltimesnews"]], aes(month, sentiment), se = FALSE, color = "green") +
+  
+  geom_point(data = outlets[["ChinaDaily"]], aes(month, sentiment, color = "ChinaDaily"), size = 3) +
+  geom_smooth(data = outlets[["ChinaDaily"]], aes(month, sentiment), se = FALSE, color = "orange") +
+  
+  scale_color_manual(values = c("beltroadnews" = "red", "XHNews" = "blue",  "globaltimesnews" = "green", "ChinaDaily" = "orange")) +
+  
+  labs(
+    title = "Average Sentiment Score by Month", 
+    x = "Year", 
+    y = "Sentiment Score (-6 to 6)",
+    color = "News Agency") +
+  
+  scale_y_continuous(
+    breaks = seq(0, 2, by = .2),
+    limits = c(0, 2)) +
+  
+  #Organizes the x axis by each month then formats how we want it labeled 
+   scale_x_date(
+    date_breaks = "1 year",
+    date_labels = "%b '%y") +
+  
+  theme_clean()
+```
+
+
+
+### combined plot - all tweeters vs top 10 tweeters vs top 5 tweeters vs Chinese state media 
+```{r}
+#Graph plotting Top 5, top 10, all tweets, and Chinese state media tweets together on the same plot to see their influence 
+
+ggplot() +
+  
+  geom_point(data = tweet_sentiments_a, aes(month, sentiment, color = "All Tweets"), size = 3) +
+  geom_smooth(data = tweet_sentiments_a, aes(month, sentiment), se = FALSE, color = "red")+
+
+  geom_point(data = TopX_list[["top_5"]], aes(month, sentiment, color = "Top 5"), size = 3) +
+  geom_smooth(data = TopX_list[["top_5"]], aes(month, sentiment), se = FALSE, color = "blue") +
+  
+#  geom_point(data = TopX_list[["top_10"]], aes(month, sentiment, color = "Top 10"), size = 3) +
+#  geom_smooth(data = TopX_list[["top_10"]], aes(month, sentiment), se = FALSE, color = "purple") +
+ 
+#  geom_point(data = TopX_list[["top_20"]], aes(month, sentiment, color = "Top 20"), size = 3) +
+#  geom_smooth(data = TopX_list[["top_20"]], aes(month, sentiment), se = FALSE, color = "green") +
+  
+  geom_point(data = sentiments_CSM, aes(month, sentiment, color = "Chinese State Media"), size = 3) +
+  geom_smooth(data = sentiments_CSM, aes(month, sentiment), se = FALSE, color = "orange") +
+  
+  scale_color_manual(values = c("All Tweets" = "red", "Top 5" = "blue", "Top 10" = "purple", "Top 20" = "green", "Chinese State Media" = "orange")) + 
+                     #labels = c("All Tweeters", "Top Ten", "Top Five", "CSM")) +
+  labs(
+    title = "Average Sentiment Score from 2014-2022", 
+    x = "Year", 
+    y = "Sentiment Score (-6 to 6)",
+    color = "Group") +
+  
+  #scale_y_continuous(
+    #breaks = seq(-0.5, 2, by = .2),
+    #limits = c(-0.5, 2)) +
+  
+  #Organizes the x axis by each month then formats how we want it labeled 
+   scale_x_date(
+    date_breaks = "1 year",
+    date_labels = "%b '%y") +
+  
+  theme_clean() +
+  theme(panel.grid.minor.y = element_line(color = "gray", linetype = "dotted"))
+```
+
+
+### Same graph as above just focusing on the difference between All tweeterss and chinese State media (with confidence intervals) 
+```{r}
+ggplot() +
+  
+  geom_point(data = tweet_sentiments_a, aes(month, sentiment, color = "All Tweets"), size = 3) +
+  geom_smooth(data = tweet_sentiments_a, aes(month, sentiment), color = "red")+
+
+#  geom_point(data = TopX_list[["top_5"]], aes(month, sentiment, color = "Top 5"), size = 3) +
+#  geom_smooth(data = TopX_list[["top_5"]], aes(month, sentiment), se = FALSE, color = "blue") +
+  
+#  geom_point(data = TopX_list[["top_10"]], aes(month, sentiment, color = "Top 10"), size = 3) +
+#  geom_smooth(data = TopX_list[["top_10"]], aes(month, sentiment), se = FALSE, color = "purple") +
+ 
+#  geom_point(data = TopX_list[["top_20"]], aes(month, sentiment, color = "Top 20"), size = 3) +
+#  geom_smooth(data = TopX_list[["top_20"]], aes(month, sentiment), se = FALSE, color = "green") +
+  
+  geom_point(data = sentiments_CSM, aes(month, sentiment, color = "Chinese State Media"), size = 3) +
+  geom_smooth(data = sentiments_CSM, aes(month, sentiment), color = "orange") +
+  
+  scale_color_manual(values = c("All Tweets" = "red", "Top 5" = "blue", "Top 10" = "purple", "Top 20" = "green", "Chinese State Media" = "orange")) + 
+                     #labels = c("All Tweeters", "Top Ten", "Top Five", "CSM")) +
+  labs(
+    title = "Average Sentiment Score from 2014-2023", 
+    x = "Month", 
+    y = "Sentiment Score (-6 to 6)",
+    color = "Tweet Source") +
+  
+  scale_y_continuous(
+    breaks = seq(-2, 2, by = 1),
+    limits = c(-2, 2)) +
+  
+  #Organizes the x axis by each month then formats how we want it labeled 
+   scale_x_date(
+    date_breaks = "1 year",
+    date_labels = "%b '%y") +
+  
+  theme_clean() +
+  theme(panel.grid.minor.y = element_line(color = "gray", linetype = "dotted"))
+```
+
+
+

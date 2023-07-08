@@ -1,3 +1,4 @@
+
 library(tidyverse)
 library(readxl)
 library(tidytext)
@@ -5,31 +6,39 @@ library(ggthemes)
 library(udpipe) #library for lemmatization 
 library(cowplot) 
 
-tweets_master <- read_excel("C:/Users/Ryan/Coding Projects/Twitter Data Scraping/master_tweets_2018.xlsx")
+#Gathering a list of all the excel files from the current directory (assuming that only excel files with tweet data are in this file )
+tweet_file_list1422 <- list.files(path = "C:/Users/Ryan/Coding Projects/Twitter Data Scraping/data", pattern = "xlsx", full.names = TRUE) #full.names returns relative path instead of just the file name which would be the default option 
 
-twe2019 <- read_excel("C:/Users/Ryan/Coding Projects/Twitter Data Scraping/master_tweets_2019.xlsx")
+df_list <- lapply(tweet_file_list1422, read_excel)
 
-#starting to combine tweet datasets for later use
-combined1819 <- rbind(tweets_master, twe2019)
+# Use do.call and rbind to combine all data frames in the list to a single dataframe
+combined1422 <- do.call(rbind, df_list)
 
 
-rm(tweets_master, twe2019)
+# Preprocessing and cleaning the combined dataframe for all years  
+
+
+## Making a succienct date variable and filtering tweets to equal only english 
+
+rm(df_list)
 
 #changing the format of the ID string to display all numbers 
-combined1819$id <- format(as.character(combined1819$id), width = 20, scientific = FALSE)
+combined1422$id <- format(as.character(combined1422$id), width = 20, scientific = FALSE)
 
 #Changing the date variable to a date format because I don't care about the time of tweet's time of day 
-combined1819$date <- as.Date(combined1819$date, format = '%b %d, %Y')
+combined1422$date <- as.Date(combined1422$date, format = '%b %d, %Y')
 
 #grabbing the month and year (12-18 for december 2018) of the tweet tweeted for later analysis to group by month and year 
-combined1819$month <- format(combined1819$date, "%m-%y") 
+combined1422$month <- format(combined1422$date, "%m-%y") 
 
 #grabbing just the year of the tweet tweeted for later analysis to group by year 
-combined1819$year <- format(combined1819$date, "%Y") 
+combined1422$year <- format(combined1422$date, "%Y") 
 
 #Grabbing only the tweets that the python program recognized as english
-tweets_EN <- combined1819 %>% filter(language == "en") 
+tweets_EN <- combined1422 %>% filter(language == "en") 
 
+
+## Using some regex to clean up each tweet by getting rid of mentions, links, and pictures  
 
 #Note that the unnest_tokens function tries to convert tokens into words and strips characters important to twitter such as # and @. A token in twitter is not the same as in regular English. For this reason, instead of using the default token, words, we define a regex that captures twitter character. The pattern appears complex but all we are defining is a patter that starts with @, # or neither and is followed by any combination of letters or digits:
 
@@ -45,9 +54,15 @@ tweet_words_china <- tweets_EN %>%
            !str_detect(word, "^\\d+$")) %>%
   mutate(word = str_replace(word, "^'", ""))
 
+rm(combined1422)
+
+
+
+## Loading in lemmatization core if it already exists (saves compute time instead of recreating lemmatization core every time)
 
 file_term <- "lemmatization"
-directory <- "C:/Users/Ryan/Coding Projects/Twitter Data Scraping"
+directory <- "C:/Users/Ryan/Coding Projects/Twitter Data Scraping/Analysis/RDAs" #where we're gonna search for the file 
+ 
 
 # Loop through all files in the directory to search for an older version of this document (file_name)
 # If it exists, load the file
@@ -65,7 +80,8 @@ for (filename in list.files(directory)) {
     #exits the loop once we've found the file with "lemmatization" in it 
     break
   }  
-}  
+}    
+
 
 #creates a new character vector based on 2 variables that contain words before and after they've gone through lemmitization   
 word <- lemmatization_core$sentence #the original vector of characters as they appeared in the tweets 
@@ -74,11 +90,8 @@ lemma <- lemmatization_core$lemma #The lemmitized version of each word now ready
 #Create a dictionary as the combined inputs of the two vectors above "word" and "lemma" so their values are now connected via the key of the original word
 lemma_dict <- setNames(lemma, word)
 
-#Code to search through the lemma_dict for a specific word to be lemmitized  
-word_to_lookup <- "increased"
 
-ifelse(word_to_lookup %in% names(lemma_dict), lemma_dict[[word_to_lookup]], NA)
-
+### Finishing up the lemitization process 
 
 #Going through the list of our original words then using the match function to connect them with their lemmitized version 
 
@@ -97,3 +110,4 @@ tweet_words_china$word_lems <- lemmatized_words
 # rename the columns
 names(tweet_words_china)[names(tweet_words_china) == "word"] <- "orig_word"
 names(tweet_words_china)[names(tweet_words_china) == "word_lems"] <- "word"
+

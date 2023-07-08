@@ -90,7 +90,7 @@ load("C:/Users/Ryan/Coding Projects/Twitter Data Scraping/lemmatization_core.rda
 ## Loading in lemmatization core if it already exists (saves compute time instead of recreating lemmatization core every time)
 ```{r}
 file_term <- "lemmatization"
-directory <- "C:/Users/Ryan/Coding Projects/Twitter Data Scraping" #where we're gonna search for the file 
+directory <- "C:/Users/Ryan/Coding Projects/Twitter Data Scraping/Analysis/RDAs" #where we're gonna search for the file 
 
 # Loop through all files in the directory to search for an older version of this document (file_name)
 # If it exists, load the file
