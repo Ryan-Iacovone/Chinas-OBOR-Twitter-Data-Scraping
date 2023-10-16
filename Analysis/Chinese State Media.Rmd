@@ -2,8 +2,8 @@
 #Reading in all the libraries and wrangled data frames from this initial R file 
 source("C:/Users/Ryan/Coding Projects/Twitter Data Scraping/sent_wrangling.R")
 
-load("tweet_sentiments_a.rda")
-load("TopX_list.rda")
+load("RDAs/tweet_sentiments_a.rda")
+load("RDAs/TopX_list.rda")
 ```
 
 
@@ -56,7 +56,7 @@ sentiments_CSM <- afinn_scores_b %>%
 ```{r}
 sentiments_CSM %>% ggplot(aes(month, sentiment)) +
   
-  geom_line(color = "blue", size = 1) +
+  geom_line(color = "blue", linewidth = 1) +
   geom_point(aes(size = n_tweets), alpha = 0.6, color = "blue") +
   
   labs(
@@ -227,6 +227,3 @@ ggplot() +
   theme_clean() +
   theme(panel.grid.minor.y = element_line(color = "gray", linetype = "dotted"))
 ```
-
-
-
