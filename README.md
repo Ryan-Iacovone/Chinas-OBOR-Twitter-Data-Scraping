@@ -9,3 +9,4 @@ After gaining a broad understanding of China's history, I wanted to explore the 
 I scrapped tweets about China's Belt and Road Initiative (BRI) off Twitter from 2014-2023 to gauge public opinion (from an English-speaking audience) on a staple policy of the Xi administration's push to increase China's soft power and global credibility. To gauge opinion from these tweets, I conducted a sentiment analysis using the Bing, Afinn, and NRC lexicons. To increase the number of words recognized by each lexicon I lemmatized each word from every tweet to its most basic form. Also, I took this opportunity to see how Chinese State Media English language outlets tried to influence the conversation/narrative regarding the BRI on English twitter feeds.
 
 "It doesn't matter if a cat is black or white, so long as it catches mice." - Deng Xiaoping
+hmmm
