@@ -1173,8 +1173,12 @@ ggplot() +
 
 
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 # Present results
+
+#Saving excel chart
+library(writexl)
+write_xlsx(afinn_scores, "afinn_scores.xlsx")
 
 
 ```
