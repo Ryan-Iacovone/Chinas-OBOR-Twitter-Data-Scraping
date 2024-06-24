@@ -60,6 +60,7 @@ rm(combined1422)
 ```
 
 
+
 ## Further preprocessing steps by lemmatizing the variable word to it's most basic form  
 
 ### ONLY RUN THIS CODE AGAIN IF WE NEED TO CREATE ANOTHER lemmatization_core.RDA FILE TAKES A WHILE TO RUN
